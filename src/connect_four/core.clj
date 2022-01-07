@@ -32,12 +32,10 @@
 ;;
 ; display logic
 ;;
-(def board-symbols {nil "•" :player-1 "o" :player-2 "x"})
-(def player-reprs {:player-1 "Player 1" :player-2 "Player 2"})
 
 (defn space-out [str-seq] (apply str (rest (interleave (repeat " ") str-seq))))
 
-(defn format_ [row] (space-out (map board-symbols row)))
+(defn format_ [row] (space-out (map (fn [s] (or s "•")) row)))
 
 (defn display-board
   [board]
@@ -53,14 +51,16 @@
 ;;
 (defn single-digit-str? [input] (contains? (set (map str (range 10))) input))
 
+(defn legal-move? [board move] (some nil? (get board move)))
+
 (defn validated-move
   [board move] 
   (if-let [parsed-move (if (single-digit-str? move) (Integer/parseInt move))]
-    (when (some nil? (get board parsed-move)) parsed-move)))
+    (when (legal-move? board parsed-move) parsed-move)))
 
 (defn ask-move
   [board player]
-  (println (str (player-reprs player) ", please enter a move:"))
+  (println (str (:name player) ", please enter a move:"))
   (let [move (read-line)]
     (or (validated-move board move)
         (do (println move "isn't a valid move. Try again!")
@@ -74,6 +74,16 @@
       "n" (do (println "Bye!") (System/exit 0))
       (do (println "Unrecognised option - enter 'y' or 'n'") (play-again?)))))
 
+(defn determine-players []
+  (println "Are you playing against a real opponent or the computer (r / c)?")
+  (let [choice          (read-line)
+        default-players [{:id :player-1 :name "Player 1" :board-symbol "o"}
+                         {:id :player-2 :name "Player 2" :board-symbol "x"}]]
+    (condp = choice
+      "r" default-players
+      "c" (assoc-in default-players [1 :computer?] true)
+      (do (println "Unrecognised option - enter 'r' or 'c'")
+          (determine-players)))))
 
 ;;
 ; game logic
@@ -106,11 +116,24 @@
 (defn update-board
   [board player move]
   (let [column (get board move) idx (count (take-while some? column))]
-    (assoc-in board [move idx] player)))
+    (assoc-in board [move idx] (:board-symbol player))))
+
+(defn random-guess-strategy [board player]
+  (let [candidate  (rand-int (width board))]
+    (if (legal-move? board candidate) candidate (recur board player))))
+
+(defn compute-move
+  [board player]
+  (Thread/sleep 3000)
+  (let [move (random-guess-strategy board player)]
+    (do (println (:name player) "chose" move) move)))
 
 (defn play-turn
   [board player]
-  (let [move (ask-move board player)] (update-board board player move)))
+  (let [move (if (:computer? player)
+               (compute-move board player)
+               (ask-move board player))]
+    (update-board board player move)))
 
 (defn game [board players]
   (display-board board)
@@ -123,5 +146,6 @@
 ;;
 (defn -main []
   (println "Welcome to Connect4!")
-  (game (new-board 7 6) (cycle [:player-1 :player-2]))
+  (let [players (determine-players)] 
+    (game (new-board 7 6) (cycle players)))
   (if (play-again?) (recur)))
