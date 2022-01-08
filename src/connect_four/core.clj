@@ -21,69 +21,64 @@
                            (iterate inc 0))]
     (vec (take-while (partial not= :outside) infinite-diag))))
 
-(defn get-diagonals
+(defn upwards-diagonals
   [board]
   (let [starting_points (concat (map vector (repeat 0) (range (height board)))
                                 ; start from (1, 0) to not double count (0, 0)
                                 (map vector (range  1 (width board)) (repeat 0)))]
     (vec (map (partial diagonal board) starting_points))))
 
+(defn column-not-full? [board column] (if (some nil? (get board column)) column nil))
+
 
 ;;
 ; display logic
 ;;
+(defn space-out [str-seq] (apply str (interpose " " str-seq)))
 
-(defn space-out [str-seq] (apply str (rest (interleave (repeat " ") str-seq))))
-
-(defn format_ [row] (space-out (map (fn [s] (or s "•")) row)))
+(defn format_ [row] (space-out (map #(or % "•") row)))
 
 (defn display-board
   [board]
   (println)
   (doseq [row (reverse (transpose board))] (println (format_ row)))
   (println (apply str (repeat (- (* 2 (width board)) 1)  "-")))
-  (println (space-out (range (width board))))
-  (println))
+  (println (space-out (range (width board)))) (println))
 
 
 ;;
 ; user interaction
 ;;
-(defn single-digit-str? [input] (contains? (set (map str (range 10))) input))
+(defn parse-move [move] (try (Integer/parseInt move) (catch Exception _ nil)))
 
-(defn legal-move? [board move] (some nil? (get board move)))
+(defn error-msg
+  [choice guidance]
+  (str "'" choice "' is not a valid option- enter " guidance))
 
-(defn validated-move
-  [board move] 
-  (if-let [parsed-move (if (single-digit-str? move) (Integer/parseInt move))]
-    (when (legal-move? board parsed-move) parsed-move)))
+;; unsafe, but cool
+(defn user-prompt [prompt options guidance]
+  (fn [] (println prompt)
+    (let [choice (read-line)]
+      (or (eval (options choice))
+          (do (println (error-msg choice guidance)) (recur))))))
 
-(defn ask-move
-  [board player]
-  (println (str (:name player) ", please enter a move:"))
-  (let [move (read-line)]
-    (or (validated-move board move)
-        (do (println move "isn't a valid move. Try again!")
-            (ask-move board player)))))
+(defn determine-players [default-players]
+  ((user-prompt
+    "Are you playing against a real opponent or the computer (r / c)?"
+    {"r" default-players "c" (assoc-in default-players [1 :computer?] true)}
+    "'r' or 'c'")))
 
-(defn play-again? []
-  (println "Play another game (y / n)?")
-  (let [choice (read-line)]
-    (condp = choice
-      "y" true
-      "n" (do (println "Bye!") (System/exit 0))
-      (do (println "Unrecognised option - enter 'y' or 'n'") (play-again?)))))
+(def play-again? (user-prompt
+                  "Play another game (y / n)?"
+                  {"y" true "n" '(do (println "Bye!") (System/exit 0))}
+                  "'y' or 'n'"))
 
-(defn determine-players []
-  (println "Are you playing against a real opponent or the computer (r / c)?")
-  (let [choice          (read-line)
-        default-players [{:id :player-1 :name "Player 1" :board-symbol "o"}
-                         {:id :player-2 :name "Player 2" :board-symbol "x"}]]
-    (condp = choice
-      "r" default-players
-      "c" (assoc-in default-players [1 :computer?] true)
-      (do (println "Unrecognised option - enter 'r' or 'c'")
-          (determine-players)))))
+(defn ask-move [board player]
+  ((user-prompt (str (:name player) ", please enter a move")
+                (comp (partial column-not-full? board) parse-move)
+                (str "an index between '0' and '" (width board)
+                     "' for a column which is not full"))))
+
 
 ;;
 ; game logic
@@ -93,25 +88,18 @@
   (let [value-streaks    (partition-by identity column)
         non-null-streaks (filter #(some? (first %)) value-streaks)
         streak-counts    (map count non-null-streaks)]
-    (if (seq streak-counts) (<= 4 (apply max streak-counts)))))
+    (if (seq streak-counts) (<= 4 (apply max streak-counts)) nil)))
 
 (defn winning-state?
   [board] (let
               [cols       board
                rows       (rotate-board-by-90 cols)
-               up-diags   (get-diagonals cols)
-               down-diags (get-diagonals rows)
+               up-diags   (upwards-diagonals cols)
+               down-diags (upwards-diagonals rows)
                candidates (concat cols rows up-diags down-diags)]
             (some true? (map winning-streak candidates))))
 
 (defn full? [board] (every? some? (flatten board)))
-
-(defn finished?
-  [board]
-  (condp apply [board]
-    winning-state? (do (println "Hurray, you win!") true)
-    full?          (do (println "It's a draw!") true)
-    false))
 
 (defn update-board
   [board player move]
@@ -120,13 +108,13 @@
 
 (defn random-guess-strategy [board player]
   (let [candidate  (rand-int (width board))]
-    (if (legal-move? board candidate) candidate (recur board player))))
+    (or (column-not-full? board candidate) (recur board player))))
 
 (defn compute-move
   [board player]
-  (Thread/sleep 3000)
+  (Thread/sleep 1000)
   (let [move (random-guess-strategy board player)]
-    (do (println (:name player) "chose" move) move)))
+    (println (:name player) "chose" move) move))
 
 (defn play-turn
   [board player]
@@ -135,17 +123,23 @@
                (ask-move board player))]
     (update-board board player move)))
 
-(defn game [board players]
+(defn game
+  [board players]
   (display-board board)
-  (if-not (finished? board)
+  (condp apply [board]
+    winning-state? (println "Hurray, you win!")
+    full?          (println "It's a draw!")
     (recur (play-turn board (first players)) (rest players))))
 
 
 ;;
 ; main
 ;;
+(def default-players [{:id :player-1 :name "Player 1" :board-symbol "o"}
+                      {:id :player-2 :name "Player 2" :board-symbol "x"}])
+
 (defn -main []
   (println "Welcome to Connect4!")
-  (let [players (determine-players)] 
+  (let [players (determine-players default-players)] 
     (game (new-board 7 6) (cycle players)))
-  (if (play-again?) (recur)))
+  (if (play-again?) (recur) nil))
