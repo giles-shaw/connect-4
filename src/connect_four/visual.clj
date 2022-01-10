@@ -12,5 +12,3 @@
   (doseq [row (reverse (transpose board))] (println (format_ row)))
   (println (apply str (repeat (- (* 2 (width board)) 1)  "-")))
   (println (space-out (range (width board)))) (println))
-
-

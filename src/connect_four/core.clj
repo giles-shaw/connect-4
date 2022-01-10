@@ -4,7 +4,6 @@
             [connect-four.prompts :refer [determine-players play-again?]]
             [connect-four.game :refer [game]]))
 
-
 ;;
 ; main
 ;;
@@ -13,6 +12,6 @@
 
 (defn -main []
   (println "Welcome to Connect4!")
-  (let [players (determine-players default-players)] 
+  (let [players (determine-players default-players)]
     (game (new-board 7 6) (cycle players)))
   (if (play-again?) (recur) nil))

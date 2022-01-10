@@ -31,5 +31,3 @@
                 (comp (partial column-not-full? board) parse-move)
                 (str "an index between '0' and '" (width board)
                      "' for a column which is not full"))))
-
-

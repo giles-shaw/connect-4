@@ -1,10 +1,9 @@
 (ns connect-four.game
   (:gen-class)
   (:require [connect-four.board
-            :refer [column-not-full? full? rotate-board-by-90 upwards-diagonals width]]
+             :refer [column-not-full? full? rotate-board-by-90 upwards-diagonals width]]
             [connect-four.prompts :refer [ask-move]]
             [connect-four.visual :refer [display-board]]))
-
 
 ;;
 ; game logic
@@ -18,13 +17,12 @@
 
 (defn winning-state?
   [board] (let
-              [cols       board
-               rows       (rotate-board-by-90 cols)
-               up-diags   (upwards-diagonals cols)
-               down-diags (upwards-diagonals rows)
-               candidates (concat cols rows up-diags down-diags)]
+           [cols       board
+            rows       (rotate-board-by-90 cols)
+            up-diags   (upwards-diagonals cols)
+            down-diags (upwards-diagonals rows)
+            candidates (concat cols rows up-diags down-diags)]
             (some true? (map winning-streak candidates))))
-
 
 (defn update-board
   [board player move]
