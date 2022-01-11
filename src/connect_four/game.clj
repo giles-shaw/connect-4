@@ -1,7 +1,8 @@
 (ns connect-four.game
   (:gen-class)
   (:require [connect-four.board
-             :refer [column-not-full? full? rotate-board-by-90 upwards-diagonals width]]
+             :refer [column-not-full? competitor-token full?
+                     rotate-board-by-90 update-board upwards-diagonals width]]
             [connect-four.prompts :refer [ask-move]]
             [connect-four.visual :refer [display-board]]))
 
@@ -24,19 +25,27 @@
             candidates (concat cols rows up-diags down-diags)]
             (some true? (map winning-streak candidates))))
 
-(defn update-board
-  [board player move]
-  (let [column (get board move) idx (count (take-while some? column))]
-    (assoc-in board [move idx] (:board-symbol player))))
+(defn winning-moves
+  [board token]
+  (let [legal-moves (filter (partial column-not-full? board) (range (width board)))]
+  (filter (comp winning-state?
+                (partial update-board board token)) legal-moves)))
 
 (defn random-guess-strategy [board player]
-  (let [candidate  (rand-int (width board))]
+  (let [candidate (rand-int (width board))]
     (or (column-not-full? board candidate) (recur board player))))
+
+(defn look-ahead-once-strategy
+  [board player]
+  (let [player-wins (winning-moves board (player :token))
+        opposition (competitor-token (player :token) board)
+        opponent-wins (if opposition (winning-moves board opposition) nil)]
+    (or (first player-wins) (first opponent-wins) (random-guess-strategy board player))))
 
 (defn compute-move
   [board player]
   (Thread/sleep 1000)
-  (let [move (random-guess-strategy board player)]
+  (let [move (look-ahead-once-strategy board player)]
     (println (:name player) "chose" move) move))
 
 (defn play-turn
@@ -44,12 +53,13 @@
   (let [move (if (:computer? player)
                (compute-move board player)
                (ask-move board player))]
-    (update-board board player move)))
+    (update-board board (player :token) move)))
 
 (defn game
   [board players]
-  (display-board board)
-  (condp apply [board]
-    winning-state? (println "Hurray, you win!")
+  (let [player (first players) updated-board (play-turn board player)]
+  (display-board updated-board)
+  (condp apply [updated-board]
+    winning-state? (println (player :name) "wins!")
     full?          (println "It's a draw!")
-    (recur (play-turn board (first players)) (rest players))))
+    (recur updated-board (rest players)))))
