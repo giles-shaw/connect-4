@@ -33,8 +33,3 @@
   [board token move]
   (let [column (get board move) idx (count (take-while some? column))]
     (assoc-in board [move idx] token)))
-
-(defn competitor-token
-  [token board]
-  (let [non-null-values (filter some? (set (flatten board)))]
-    (first (filter #((not= token %)) non-null-values))))

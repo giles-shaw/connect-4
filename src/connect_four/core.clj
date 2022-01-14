@@ -3,17 +3,21 @@
   (:require [connect-four.board :refer [new-board]]
             [connect-four.prompts :refer [determine-players play-again?]]
             [connect-four.visual :refer [display-board]]
-            [connect-four.game :refer [game]]))
+            [connect-four.game :refer [play]]))
 
 ;;
 ; main
 ;;
-(def default-players [{:id :player-1 :name "Player 1" :board-symbol "o"}
-                      {:id :player-2 :name "Player 2" :board-symbol "x"}])
+(def default-players [{:name "Player 1" :token "o"}
+                      {:name "Player 2" :token "x"}])
 
 (defn -main []
   (println "Welcome to Connect4!")
-  (let [players (determine-players default-players) board (new-board 7 6)]
+  (let [[player-1, player-2] (determine-players default-players)
+        board                (new-board 7 6)
+        game                 {:board board
+                              :current-player player-1
+                              :next-player player-2}]
     (display-board board)
-    (game board (cycle players)))
+    (play game))
   (if (play-again?) (recur) nil))
