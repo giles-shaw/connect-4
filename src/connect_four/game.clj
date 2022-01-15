@@ -9,6 +9,11 @@
 ;;
 ; game logic
 ;;
+(defn next-turn
+  [updated-board {:keys [current-player next-player] :as game}]
+  (assoc game :board updated-board :current-player next-player :next-player current-player))
+
+
 (defn longest-streak
   ([column]
   (let [value-streaks    (partition-by identity column)
@@ -31,10 +36,9 @@
 (def streak-score-map {4 1e6 3 1e3 2 1e2 1 0})
 
 (defn score
-  [score-map game player]
-  (let [board                  (game :board)
-        opponent               (first (filter #(not= % player)
-                                              [(game :current-player) (game :next-player)]))
+  [score-map {board :board :as game} player]
+  (let [[opponent]               (filter #(not= % player)
+                                         [(game :current-player) (game :next-player)])
         player-streak-counts   (streak-counts board (player :token))
         opponent-streak-counts (streak-counts board (opponent :token))
         player-score           (apply + (map #(* (score-map %) (get player-streak-counts % 0))
@@ -64,11 +68,8 @@
     (or (column-not-full? board candidate) (recur board player))))
 
 (defn look-ahead-once-strategy
-  [game]
-  (let [board         (game :board)
-        player        (game :current-player)
-        opposition    (game :next-player)
-        player-wins   (winning-moves board (player :token))
+  [{board :board player :current-player opposition :next-player}]
+  (let [player-wins   (winning-moves board (player :token))
         opponent-wins (winning-moves board (opposition :token))]
     (or (first player-wins) (first opponent-wins) (random-guess-strategy board player))))
 
@@ -80,29 +81,23 @@
         legal-moves (filter (partial column-not-full? board) (range (width board)))]
     (if (some true? [(= 0 n-turns) (nil? legal-moves) (winning-state? board)])
         (score streak-score-map game player)
-        (mean (map #(look-ahead-score (assoc game
-                                             :board (update-board board
-                                                                  (get-in game
-                                                                          [:current-player :token]) 
-                                                                  %)
-                                             :current-player (game :next-player)
-                                             :next-player (game :current-player))
+        (mean (map #(look-ahead-score (next-turn
+                                        (update-board board
+                                                      (get-in game
+                                                              [:current-player :token])
+                                                      %)
+                                        game)                                      
                                       player
                                       (dec n-turns))
                    legal-moves)))))
 
 
 (defn look-ahead-strategy
-  [game n-turns]
-  (let [player        (game :current-player)
-        my-board      (game :board)
-        legal-moves   (filter (partial column-not-full? my-board) (range (width my-board)))
-        future-states (map #(update-board my-board (player :token) %) legal-moves)
+  [{board :board player :current-player :as game} n-turns]
+  (let [legal-moves   (filter (partial column-not-full? board) (range (width board)))
+        future-states (map #(update-board board (player :token) %) legal-moves)
         move-scores   (zipmap legal-moves
-                              (map #(look-ahead-score (assoc game
-                                                             :board %
-                                                             :current-player (game :next-player)
-                                                             :next-player player)
+                              (map #(look-ahead-score (next-turn % game)
                                                       player
                                                       (dec n-turns))
                                    future-states))]
@@ -119,9 +114,6 @@
                ["x" 5]
                ["o" 4]]))
 
-(display-board board2)
-; (def board2 (update-board board "o" 3))
-
 (def game {:board board2 ; (update-board board2 "x" 5)
            :current-player {:name "Player 2" :token "x"}
            :next-player {:name "Player 1" :token "o"}})
@@ -129,38 +121,11 @@
                          :board (update-board (game :board) "x" 0)
                          :current-player (game :next-player)
                          :next-player (game :current-player)))
-
 (def game3 (assoc game2 :board (update-board (game2 :board) "o" 1)
                         :current-player (game2 :next-player)
                         :next-player (game2 :current-player)))
-(display-board (game :board))
-(game3 :current-player)
-(score streak-score-map game (game :next-player))
-(look-ahead-strategy game 2)
 
-(let [player        (game :current-player)
-      my-board      (game :board)
-      legal-moves   (filter (partial column-not-full? my-board) (range (width my-board)))
-      future-states (map #(update-board my-board (player :token) %) legal-moves)
-      move-scores   (zipmap legal-moves
-                            (map #(look-ahead-score (assoc game :board %
-                                                           :current-player (game :next-player)
-                                                           :next-player (game :current-player))
-                                                    {:name "Player 2" :token "x"}
-                                                    (dec 2))
-                                 future-states))]
-  move-scores)
-(filter (partial column-not-full? board2) (range 7))
-(look-ahead-score (assoc game
-                         :board (update-board (game :board) "x" 0)
-                         :current-player (game :next-player)
-                         :next-player (game :current-player))
-                  (game :current-player)
-                  1)
 
-(look-ahead-score game {:name "Player 2" :token "x"} 2)
-(look-ahead-score game2 {:name "Player 2" :token "x"} 1)
-(look-ahead-score game3 {:name "Player 2" :token "x"} 0)
 (defn compute-move
   [game]
   (Thread/sleep 1000)
@@ -168,10 +133,8 @@
     (println (get-in game [:current-player :name]) "chose" move) move))
 
 (defn play-turn
-  [game]
-  (let [board  (game :board)
-        player (game :current-player)
-        move   (if (:computer? player)
+  [{board :board player :current-player :as game}]
+  (let [move   (if (:computer? player)
                  (compute-move game)
                  (ask-move board player))]
     (update-board board (player :token) move)))
@@ -183,7 +146,4 @@
   (condp apply [updated-board]
     winning-state? (println (get-in game [:current-player :name]) "wins!")
     full?          (println "It's a draw!")
-    (recur (assoc game
-                  :board updated-board
-                  :current-player (game :next-player)
-                  :next-player (game :current-player))))))
+    (recur (next-turn updated-board game)))))
