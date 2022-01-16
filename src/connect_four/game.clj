@@ -1,81 +1,58 @@
 (ns connect-four.game
   (:gen-class)
   (:require [connect-four.board
-             :refer [column-not-full? new-board rotate-board-by-90
-                     update-board upwards-diagonals width]]
+             :refer [incomplete-columns streak-counts update-board]]
             [connect-four.prompts :refer [ask-move]]
             [connect-four.visual :refer [display-board]]))
 
 ;;
 ; game logic
 ;;
-(defn legal-moves [board] (filter (partial column-not-full? board) (range (width board))))
-
 (defn next-turn
   [{:keys [current-player next-player] :as game} updated-board]
-  (assoc game :board updated-board :current-player next-player :next-player current-player))
-
-(defn longest-streak
-  ([column]
-  (let [value-streaks    (partition-by identity column)
-        non-null-streaks (filter #(some? (first %)) value-streaks)
-        streak-counts    (map count non-null-streaks)]
-    (if (seq streak-counts) (apply max streak-counts) nil)))
-  ([column token] (longest-streak (map #(if (= % token) token nil) column))))
-
-(defn streak-counts
-  [board token]
-  (let [cols           board
-        rows           (rotate-board-by-90 cols)
-        up-diags       (upwards-diagonals cols)
-        down-diags     (upwards-diagonals rows)
-        candidates     (concat cols rows up-diags down-diags)
-        streaks        (map #(longest-streak % token) candidates)]
-    (frequencies (filter some? streaks))))
-
-(def streak-score-map {4 1e6 3 1e3 2 1e2 1 0})
-
-(defn score
-  [score-map {board :board :as game} player]
-  (let [[opponent]               (filter #(not= % player)
-                                         [(game :current-player) (game :next-player)])
-        player-streak-counts   (streak-counts board (player :token))
-        opponent-streak-counts (streak-counts board (opponent :token))
-        player-score           (apply + (map #(* (score-map %) (get player-streak-counts % 0))
-                                             (range 1 5)))
-        opponent-score         (apply + (map #(* (score-map %) (get opponent-streak-counts % 0))
-                                             (range 1 5)))]
-      (- player-score opponent-score)))
-
-(defn winning-state?
-  [board] (let
-           [cols       board
-            rows       (rotate-board-by-90 cols)
-            up-diags   (upwards-diagonals cols)
-            down-diags (upwards-diagonals rows)
-            candidates (concat cols rows up-diags down-diags)]
-            (some #(>= % 4) (filter some? (map longest-streak candidates)))))
-
-(defn mean [col] (if (seq col) (/ (apply + col) (count col)) 0))
+  (assoc game :board updated-board :current-player
+         next-player :next-player current-player))
 
 (defn possible-game-states-next-turn
   [{board :board {token :token} :current-player :as game}]
-  (let [moves          (legal-moves board)
-        updated-boards (map (partial update-board board token) moves)
+  (let [legal-moves    (incomplete-columns board)
+        updated-boards (map (partial update-board board token) legal-moves)
         updated-games  (map (partial next-turn game) updated-boards)]
-    (zipmap moves updated-games)))
+    (zipmap legal-moves updated-games)))
+
+(defn mean [col] (if (seq col) (/ (apply + col) (count col)) 0))
+
+(defn winning-state?
+  [board]
+  (some (fn [[k v]] (and (>= k 4) (> v 0))) (streak-counts board)))
+
+(def streak-score-map {7 1e6 6 1e6 5 1e6 4 1e6 3 1e3 2 1e2 1 0})
+
+(defn token-score
+  [score-map board token]
+  (let [token-streak-counts (streak-counts board token)
+        score-fn (fn [[k v]] v * (score-map k))]
+    (apply + (map score-fn token-streak-counts))))
+
+(defn present-score
+  [score-map {board :board :as game} player]
+  (let [players    [(game :current-player) (game :next-player)]
+        [opponent] (remove #{player} players)
+        score-fn   (comp (partial token-score score-map board) :token)
+        [player-score, opp-score] (map score-fn [player, opponent])]
+  (- player-score opp-score)))
 
 (defn look-ahead-score
   [{board :board :as game} player n-turns]
   (if (some true? [(zero? n-turns) (winning-state? board)])
-    (score streak-score-map game player)
+    (present-score streak-score-map game player)
     (mean (map #(look-ahead-score % player (dec n-turns))
                (vals (possible-game-states-next-turn game))))))
 
 (defn look-ahead-strategy
   [{player :current-player :as game} n-turns]
   (let [future-states  (possible-game-states-next-turn game)
-        [moves games] [(keys future-states) (vals future-states)]
+        [moves games]  [(keys future-states) (vals future-states)]
         score-game     (fn [game] (look-ahead-score game player (dec n-turns)))
         move-scores    (zipmap moves (pmap score-game games))]
     (key (apply max-key val move-scores))))
@@ -83,8 +60,8 @@
 (defn compute-move
   [game]
   (Thread/sleep 500)
-  (let [future-horizon 4
-        move           (look-ahead-strategy game future-horizon)]
+  (let [horizon 4
+        move    (look-ahead-strategy game horizon)]
     (println (get-in game [:current-player :name]) "chose" move) move))
 
 (defn play-turn
@@ -99,6 +76,6 @@
   (let [updated-board (play-turn game)]
   (display-board updated-board)
   (condp apply [updated-board]
-    winning-state?                     (println (get-in game [:current-player :name]) "wins!")
-    (comp empty? legal-moves)          (println "It's a draw!")
+    winning-state? (println (get-in game [:current-player :name]) "wins!")
+    (comp empty? incomplete-columns) (println "It's a draw!")
     (recur (next-turn game updated-board)))))

@@ -27,7 +27,28 @@
 
 (defn column-not-full? [board column] (if (some nil? (get board column)) column nil))
 
+(defn incomplete-columns
+  [board] (filter (partial column-not-full? board) (range (width board))))
+
 (defn update-board
   [board token move]
   (let [column (get board move) idx (count (take-while some? column))]
     (assoc-in board [move idx] token)))
+
+(defn longest-streak
+  ([column]
+  (let [value-streaks    (partition-by identity column)
+        non-null-streaks (filter #(some? (first %)) value-streaks)
+        streak-counts    (map count non-null-streaks)]
+    (if (seq streak-counts) (apply max streak-counts) nil)))
+  ([column token] (longest-streak (map #(if (= % token) token nil) column))))
+
+(defn streak-counts
+  [board & token]
+  (let [cols           board
+        rows           (rotate-board-by-90 cols)
+        up-diags       (upwards-diagonals cols)
+        down-diags     (upwards-diagonals rows)
+        candidates     (concat cols rows up-diags down-diags)
+        streaks        (map #(apply longest-streak % token) candidates)]
+    (frequencies (filter some? streaks))))
