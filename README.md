@@ -1,6 +1,6 @@
 # connect-four
 
-A learning project -play Connect 4 in the Terminal against a friend or the computer.
+A project for learning Clojure: play Connect 4 in the terminal against a friend or the (tree search powered) computer.
 
 ## Usage
 
