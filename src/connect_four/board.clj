@@ -27,8 +27,6 @@
 
 (defn column-not-full? [board column] (if (some nil? (get board column)) column nil))
 
-(defn full? [board] (every? some? (flatten board)))
-
 (defn update-board
   [board token move]
   (let [column (get board move) idx (count (take-while some? column))]

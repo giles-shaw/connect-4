@@ -13,7 +13,7 @@
 
 (defn -main []
   (println "Welcome to Connect4!")
-  (let [[player-1, player-2] (determine-players default-players)
+  (let [[player-1 player-2] (determine-players default-players)
         board                (new-board 7 6)
         game                 {:board board
                               :current-player player-1
