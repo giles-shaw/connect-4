@@ -65,11 +65,11 @@
     (println (get-in game [:current-player :name]) "chose" move) move))
 
 (defn play-turn
-  [{board :board player :current-player :as game}]
-  (let [move (if (:computer? player)
+  [{:keys [board current-player] :as game}]
+  (let [move (if (:computer? current-player)
                (compute-move game)
-               (ask-move board player))]
-    (update-board board (player :token) move)))
+               (ask-move board current-player))]
+    (update-board board (current-player :token) move)))
 
 (defn play
   [game]
