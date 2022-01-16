@@ -14,10 +14,10 @@
 (defn -main []
   (println "Welcome to Connect4!")
   (let [[player-1 player-2] (determine-players default-players)
-        board                (new-board 7 6)
-        game                 {:board board
-                              :current-player player-1
-                              :next-player player-2}]
+        board               (new-board 7 6)
+        game                {:board board
+                             :current-player player-1
+                             :next-player player-2}]
     (display-board board)
     (play game))
   (if (play-again?) (recur) nil))
