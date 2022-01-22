@@ -13,28 +13,23 @@
   (assoc game :board updated-board :current-player
          next-player :next-player current-player))
 
-(defn possible-game-states-next-turn
-  [{board :board {token :token} :current-player :as game}]
-  (let [legal-moves    (incomplete-columns board)
-        updated-boards (map (partial update-board board token) legal-moves)
-        updated-games  (map (partial next-turn game) updated-boards)]
-    (zipmap legal-moves updated-games)))
-
 (defn mean [col] (if (seq col) (/ (apply + col) (count col)) 0))
 
 (defn winning-state?
   [board]
-  (some (fn [[k v]] (and (>= k 4) (> v 0))) (streak-counts board)))
+  (some (fn [[streak-length n_occurrences]]
+          (and (>= streak-length 4) (> n_occurrences 0))) (streak-counts board)))
 
 (def streak-score-map {7 1e6 6 1e6 5 1e6 4 1e6 3 1e3 2 1e2 1 0})
 
 (defn token-score
   [score-map board token]
   (let [token-streak-counts (streak-counts board token)
-        score-fn (fn [[k v]] v * (score-map k))]
+        score-fn (fn [[streak-length n_occurrences]]
+                   n_occurrences * (score-map streak-length))]
     (apply + (map score-fn token-streak-counts))))
 
-(defn present-score
+(defn snapshot-score
   [score-map {board :board :as game} player]
   (let [players    [(game :current-player) (game :next-player)]
         [opponent] (remove #{player} players)
@@ -42,21 +37,22 @@
         [player-score, opp-score] (map score-fn [player, opponent])]
   (- player-score opp-score)))
 
-(defn look-ahead-score
-  [{board :board :as game} player n-turns]
-  (if (some true? [(zero? n-turns) (winning-state? board)])
-    (present-score streak-score-map game player)
-    (mean (map #(look-ahead-score % player (dec n-turns))
-               (vals (possible-game-states-next-turn game))))))
+(defn look-ahead-move-scores
+  [{board :board {token :token} :current-player :as game} player n-turns]
+  (if (or (zero? n-turns) (winning-state? board))
+    {nil (snapshot-score streak-score-map game player)}
+    (let [moves             (incomplete-columns board)
+          updated-boards    (map (partial update-board board token) moves)
+          updated-games     (map (partial next-turn game) updated-boards)
+          scores            (map #(look-ahead-move-scores % player (dec n-turns))
+                                  updated-games)]
+      (zipmap moves (map (comp mean vals) scores)))))
 
 (defn look-ahead-strategy
   [{player :current-player :as game} n-turns]
-  (let [future-states  (possible-game-states-next-turn game)
-        [moves games]  [(keys future-states) (vals future-states)]
-        score-game     (fn [game] (look-ahead-score game player (dec n-turns)))
-        move-scores    (zipmap moves (pmap score-game games))]
+  (let [move-scores (look-ahead-move-scores game player n-turns)]
     (key (apply max-key val move-scores))))
-        
+
 (defn compute-move
   [game]
   (Thread/sleep 500)
