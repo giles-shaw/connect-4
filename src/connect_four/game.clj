@@ -55,22 +55,21 @@
 
 (defn compute-move
   [game]
-  (Thread/sleep 500)
   (let [horizon 4
         move    (look-ahead-strategy game horizon)]
     (println (get-in game [:current-player :name]) "chose" move) move))
 
 (defn play-turn
   [{:keys [board current-player] :as game}]
-  (let [move (if (:computer? current-player)
-               (compute-move game)
-               (ask-move board current-player))]
-    (update-board board (current-player :token) move)))
+  (let [move          (if (:computer? current-player)
+                        (compute-move game)
+                        (ask-move board current-player))
+        updated-board (update-board board (current-player :token) move)]
+    (display-board updated-board move) updated-board))
 
 (defn play
   [game]
   (let [updated-board (play-turn game)]
-  (display-board updated-board)
   (condp apply [updated-board]
     winning-state? (println (get-in game [:current-player :name]) "wins!")
     (comp empty? incomplete-columns) (println "It's a draw!")

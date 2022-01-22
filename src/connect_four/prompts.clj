@@ -27,7 +27,7 @@
                   "'y' or 'n'"))
 
 (defn ask-move [board player]
-  ((user-prompt (str (:name player) ", please enter a move")
+  ((user-prompt (str (:name player) ", please enter a move:")
                 (comp (partial column-not-full? board) parse-move)
                 (str "an index between '0' and '" (width board)
                      "' for a column which is not full"))))
