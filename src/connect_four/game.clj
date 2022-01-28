@@ -2,16 +2,15 @@
   (:gen-class)
   (:require [connect-four.board
              :refer [incomplete-columns streak-counts update-board]]
-            [connect-four.prompts :refer [ask-move]]
-            [connect-four.visual :refer [display-board]]))
+            [connect-four.prompts :refer [ask-move]]))
 
 ;;
 ; game logic
 ;;
-(defn next-turn
-  [{:keys [current-player next-player] :as game} updated-board]
-  (assoc game :board updated-board :current-player
-         next-player :next-player current-player))
+(defn update-game
+  [{:keys [active-player passive-player] :as game} updated-board]
+  (assoc game :board updated-board :active-player
+         passive-player :passive-player active-player))
 
 (defn mean [col] (if (seq col) (/ (apply + col) (count col)) 0))
 
@@ -31,46 +30,42 @@
 
 (defn snapshot-score
   [score-map {board :board :as game} player]
-  (let [players    [(game :current-player) (game :next-player)]
+  (let [players    [(game :active-player) (game :passive-player)]
         [opponent] (remove #{player} players)
         score-fn   (comp (partial token-score score-map board) :token)
         [player-score, opp-score] (map score-fn [player, opponent])]
   (- player-score opp-score)))
 
 (defn look-ahead-move-scores
-  [{board :board {token :token} :current-player :as game} player n-turns]
+  [{board :board {token :token} :active-player :as game} player n-turns]
   (if (or (zero? n-turns) (winning-state? board))
     {nil (snapshot-score streak-score-map game player)}
     (let [moves             (incomplete-columns board)
           updated-boards    (map (partial update-board board token) moves)
-          updated-games     (map (partial next-turn game) updated-boards)
+          updated-games     (map (partial update-game game) updated-boards)
           scores            (map #(look-ahead-move-scores % player (dec n-turns))
                                   updated-games)]
       (zipmap moves (map (comp mean vals) scores)))))
 
 (defn look-ahead-strategy
-  [{player :current-player :as game} n-turns]
+  [{player :active-player :as game} n-turns]
   (let [move-scores (look-ahead-move-scores game player n-turns)]
     (key (apply max-key val move-scores))))
 
 (defn compute-move
-  [game]
-  (let [horizon 4
-        move    (look-ahead-strategy game horizon)]
-    (println (get-in game [:current-player :name]) "chose" move) move))
+  [game] (let [horizon 4] (look-ahead-strategy game horizon)))
 
 (defn play-turn
-  [{:keys [board current-player] :as game}]
-  (let [move          (if (:computer? current-player)
+  [{:keys [board active-player] :as game}]
+  (let [move          (if (:computer? active-player)
                         (compute-move game)
-                        (ask-move board current-player))
-        updated-board (update-board board (current-player :token) move)]
-    (display-board updated-board move) updated-board))
+                        (ask-move board active-player))
+        updated-board (update-board board (active-player :token) move)]
+     (assoc (update-game game updated-board) :last-move move)))
 
 (defn play
   [game]
-  (let [updated-board (play-turn game)]
-  (condp apply [updated-board]
-    winning-state? (println (get-in game [:current-player :name]) "wins!")
-    (comp empty? incomplete-columns) (println "It's a draw!")
-    (recur (next-turn game updated-board)))))
+  (condp apply [(game :board)]
+    winning-state?                   [(assoc game :winner (game :passive-player))]
+    (comp empty? incomplete-columns) [(assoc game :draw true)]
+    (lazy-cat [game] (play (play-turn game)))))
