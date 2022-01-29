@@ -15,11 +15,10 @@
       (or (eval (options choice))
           (do (println (error-msg choice guidance)) (recur))))))
 
-(defn determine-players [default-players]
-  ((user-prompt
+(def computer-opponent?
+  (user-prompt
     "Are you playing against a real opponent or the computer (r / c)?"
-    {"r" default-players "c" (assoc-in default-players [1 :computer?] true)}
-    "'r' or 'c'")))
+    {"r" false "c" true} "'r' or 'c'"))
 
 (def play-again? (user-prompt
                   "Play another game (y / n)?"
@@ -29,5 +28,5 @@
 (defn ask-move [board player]
   ((user-prompt (str (:name player) ", please enter a move:")
                 (comp (partial column-not-full? board) parse-move)
-                (str "an index between '0' and '" (width board)
+                (str "an index between '0' and '" (-> board width dec)
                      "' for a column which is not full"))))

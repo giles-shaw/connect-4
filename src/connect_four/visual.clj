@@ -14,8 +14,8 @@
 (defn render-entry
   [entry]
   (condp = entry
-    "x" (make-blue entry)
-    "o" (make-red entry)
+    "x" (make-blue "●")
+    "o" (make-red "●")
     nil "•"
     entry))
 
@@ -40,7 +40,7 @@
 
 (defn preamble
   [{player :passive-player :as game}]
-  (if (:computer? player)
+  (if (and (:computer? player) (game :last-move))
     (str (player :name) " chose " (game :last-move))
     nil))
 
@@ -56,5 +56,5 @@
   (let [rendered-board (if (game :last-move)
                          (render-board (game :board) (game :last-move))
                          (render-board (game :board)))
-        messages       [(preamble game) rendered-board (conclusion game)] ]
+        messages       [(preamble game) rendered-board (conclusion game)]]
     (apply str (interpose "\n" (filter some? messages)))))
