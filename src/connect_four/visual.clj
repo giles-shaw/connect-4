@@ -19,8 +19,6 @@
     nil "•"
     entry))
 
-(defn render [row] (space-out (map render-entry row)))
-
 (defn char-board
   ([board] (mapv (partial mapv render-entry) board))
   ([board column]

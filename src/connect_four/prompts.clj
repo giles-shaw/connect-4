@@ -1,6 +1,6 @@
 (ns connect-four.prompts (:require [connect-four.board :refer [column-not-full? width]]))
 ;;
-; user interaction
+; Ask users to make choices
 ;;
 (defn parse-move [move] (try (Integer/parseInt move) (catch Exception _ nil)))
 
@@ -15,7 +15,7 @@
       (or (eval (options choice))
           (do (println (error-msg choice guidance)) (recur))))))
 
-(def computer-opponent?
+(def choose-opponent?
   (user-prompt
     "Are you playing against a real opponent or the computer (r / c)?"
     {"r" :human "c" :computer} "'r' or 'c'"))
@@ -25,9 +25,9 @@
                   {"y" true "n" '(do (println "Bye!") (System/exit 0))}
                   "'y' or 'n'"))
 
-(defn ask-move-fn [player]
+(defn ask-move? [name]
   (fn [{board :board}]
-    ((user-prompt (str (:name player) ", please enter a move:")
+    ((user-prompt (str name ", please enter a move:")
                 (comp (partial column-not-full? board) parse-move)
                 (str "an index between '0' and '" (-> board width dec)
                      "' for a column which is not full")))))

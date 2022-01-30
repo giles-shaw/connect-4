@@ -1,33 +1,26 @@
 (ns connect-four.core
   (:gen-class)
-  (:require [connect-four.board :refer [new-board]]
-            [connect-four.game :refer [compute-move play]]
-            [connect-four.prompts :refer [ask-move-fn computer-opponent? play-again?]]
+  (:require [connect-four.game :refer [new-game play]]
+            [connect-four.prompts :refer [ask-move? choose-opponent? play-again?]]
+            [connect-four.strategy :refer [compute-move]]
             [connect-four.visual :refer [report]]))
 
 ;;
 ; main
 ;;
-(def human-pair (mapv #(assoc % :move-fn (ask-move-fn %))
-                      [{:name "Player 1" :token "o"}
-                       {:name "Player 2" :token "x"}]))
+(def player-1 (let [name "Player 1"]
+                {:name name :token "o" :move-fn (ask-move? name)}))
 
-(def hybrid-pair [(first human-pair)
-                  {:name "✨ AI ✨"  :token "x"
-                   :computer? true :move-fn compute-move}])
+(def player-2 (let [name "Player 2"]
+                {:name name :token "x" :move-fn (ask-move? name)}))
 
-(defn new-game
-  [players]
-  (let [[player-1, player-2] players
-        board                (new-board 7 6)]
-    {:board board :active-player player-1 :passive-player player-2}))
+(def player-2-computer (assoc player-2 :move-fn compute-move :computer? true))
 
-(defn determine-players [opponent]
-  (if (= opponent :computer) hybrid-pair human-pair))
+(def opponents {:human player-2 :computer player-2-computer})
 
 (defn -main []
   (let [welcome-message     "Welcome to Connect4!\n"
-        players             #(determine-players (computer-opponent?))]
+        players #(vector player-1 (opponents (choose-opponent?)))]
     (mapv println (lazy-cat [welcome-message]
                             (map report (play (new-game (players)))))))
   (if (play-again?) (recur) nil))
