@@ -15,8 +15,9 @@
   [score-map board token]
   (let [token-streak-counts (streak-counts board token)
         score-fn (fn [[streak-length n_occurrences]]
-                   n_occurrences * (score-map streak-length))]
+                   (* n_occurrences (score-map streak-length)))]
     (apply + (map score-fn token-streak-counts))))
+
 
 (defn snapshot-score
   [score-map {board :board :as game} player]

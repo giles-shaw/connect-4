@@ -25,7 +25,6 @@
    (let [head-ix (dec (count (take-while some? (board column))))]
      (update-in (char-board board) [column head-ix] underline))))
 
-
 (defn render-char-board [char-board_]
   (let [rows (vec (map space-out (reverse (transpose char-board_))))
         divider (apply str (repeat (- (* 2 (width char-board_)) 1) "-"))
