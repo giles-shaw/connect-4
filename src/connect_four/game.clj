@@ -8,15 +8,15 @@
 ;;
 (defn winning-state?
   [board]
-  (some (fn [[streak-length n_occurrences]]
-          (and (>= streak-length 4) (> n_occurrences 0))) (streak-counts board)))
+  (let [long-enough (fn [[streak-length n_occurrences]]
+                     (and (>= streak-length 4) (> n_occurrences 0)))]
+  (some long-enough (streak-counts board))))
 
 (defn new-game
   [players]
   (let [[player-1, player-2] players
         board                (new-board 7 6)]
     {:board board :active-player player-1 :passive-player player-2}))
-
 
 (defn update-game
   [{:keys [active-player passive-player] :as game} updated-board]
