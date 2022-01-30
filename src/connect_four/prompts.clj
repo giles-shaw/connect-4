@@ -18,15 +18,16 @@
 (def computer-opponent?
   (user-prompt
     "Are you playing against a real opponent or the computer (r / c)?"
-    {"r" false "c" true} "'r' or 'c'"))
+    {"r" :human "c" :computer} "'r' or 'c'"))
 
 (def play-again? (user-prompt
                   "Play another game (y / n)?"
                   {"y" true "n" '(do (println "Bye!") (System/exit 0))}
                   "'y' or 'n'"))
 
-(defn ask-move [board player]
-  ((user-prompt (str (:name player) ", please enter a move:")
+(defn ask-move-fn [player]
+  (fn [{board :board}]
+    ((user-prompt (str (:name player) ", please enter a move:")
                 (comp (partial column-not-full? board) parse-move)
                 (str "an index between '0' and '" (-> board width dec)
-                     "' for a column which is not full"))))
+                     "' for a column which is not full")))))

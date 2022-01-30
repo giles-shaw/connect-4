@@ -1,8 +1,7 @@
 (ns connect-four.game
   (:gen-class)
   (:require [connect-four.board
-             :refer [incomplete-columns streak-counts update-board]]
-            [connect-four.prompts :refer [ask-move]]))
+             :refer [incomplete-columns streak-counts update-board]]))
 
 ;;
 ; game logic
@@ -57,11 +56,9 @@
   [game] (let [horizon 4] (look-ahead-strategy game horizon)))
 
 (defn play-turn
-  [{:keys [board active-player] :as game}]
-  (let [move          (if (:computer? active-player)
-                        (compute-move game)
-                        (ask-move board active-player))
-        updated-board (update-board board (active-player :token) move)]
+  [{board :board {token :token move-fn :move-fn} :active-player :as game}]
+  (let [move          (move-fn game)
+        updated-board (update-board board token move)]
      (assoc (update-game game updated-board) :last-move move)))
 
 (defn play
