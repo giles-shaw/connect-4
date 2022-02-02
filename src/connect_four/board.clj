@@ -25,7 +25,7 @@
                                 (map vector (range  1 (width board)) (repeat 0)))]
     (vec (map (partial diagonal board) starting_points))))
 
-(defn column-not-full? [board column] (if (some nil? (get board column)) column nil))
+(defn column-not-full? [board column] (if (some nil? (board column)) column nil))
 
 (defn incomplete-columns
   [board] (filter (partial column-not-full? board) (range (width board))))
