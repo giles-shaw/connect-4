@@ -20,7 +20,7 @@
 
 (defn -main []
   (let [welcome-message     "Welcome to Connect4!\n"
-        players #(vector player-1 (opponents (choose-opponent?)))]
+        players             `[player-1 (opponents (choose-opponent?))]]
     (mapv println (lazy-cat [welcome-message]
-                            (map report (play (new-game (players)))))))
+                            (map report (play (new-game (eval players)))))))
   (if (play-again?) (recur) nil))
