@@ -27,7 +27,9 @@
 
 (defn ask-move? [name]
   (fn [{board :board}]
+    (let [width_   (width board)
+          validator (->> width_ range (filter (partial column-not-full? board)) set)]
     ((user-prompt (str name ", please enter a move:")
-                (comp (partial column-not-full? board) parse-move)
-                (str "an index between '0' and '" (-> board width dec)
-                     "' for a column which is not full")))))
+                (comp validator parse-move)
+                (str "an index between '0' and '" (dec width_)
+                     "' for a column which is not full"))))))
