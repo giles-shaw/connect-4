@@ -22,13 +22,13 @@
 (defn char-board
   ([board] (mapv (partial mapv render-entry) board))
   ([board column]
-   (let [head-ix (dec (count (take-while some? (board column))))]
+   (let [head-ix (->> column board (take-while some?) count dec)]
      (update-in (char-board board) [column head-ix] underline))))
 
 (defn render-char-board [char-board_]
-  (let [rows (vec (map space-out (reverse (transpose char-board_))))
-        divider (apply str (repeat (- (* 2 (width char-board_)) 1) "-"))
-        board-indices (space-out (range (width char-board_)))
+  (let [rows (->> char-board_ transpose reverse (map space-out) vec)
+        divider (apply str (-> char-board_ width (* 2) (- 1) (repeat "-")))
+        board-indices (-> char-board_ width range space-out)
         lines         (into rows [divider board-indices])
         ]
     (apply str (interleave lines (repeat "\n")))))
