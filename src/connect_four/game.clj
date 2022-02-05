@@ -19,15 +19,15 @@
     {:board board :active-player player-1 :passive-player player-2}))
 
 (defn update-game
-  [{:keys [active-player passive-player] :as game} updated-board]
-  (assoc game :board updated-board :active-player
-         passive-player :passive-player active-player))
+  [{:keys [active-player passive-player board] :as game} move]
+  (let [updated-board (update-board board (active-player :token) move)]
+  (assoc game :board updated-board :active-player passive-player
+         :passive-player active-player)))
 
 (defn play-turn
-  [{board :board {token :token move-fn :move-fn} :active-player :as game}]
-  (let [move          (move-fn game)
-        updated-board (update-board board token move)]
-     (assoc (update-game game updated-board) :last-move move)))
+  [{{move-fn :move-fn} :active-player :as game}]
+  (let [move          (move-fn game)]
+     (assoc (update-game game move) :last-move move)))
 
 (defn play
   [game]

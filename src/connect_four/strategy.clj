@@ -1,7 +1,6 @@
 (ns connect-four.strategy
   (:gen-class)
-  (:require [connect-four.board
-             :refer [incomplete-columns streak-counts update-board]]
+  (:require [connect-four.board :refer [incomplete-columns streak-counts]]
             [connect-four.game :refer [update-game winning-state?]]))
 
 ;;
@@ -28,12 +27,11 @@
   (- player-score opp-score)))
 
 (defn look-ahead-move-scores
-  ([{board :board {token :token} :active-player :as game} player n-turns mapfn]
+  ([{board :board :as game} player n-turns mapfn]
   (if (or (zero? n-turns) (winning-state? board))
     {nil (snapshot-score streak-score-map game player)}
     (let [moves             (incomplete-columns board)
-          updated-boards    (map (partial update-board board token) moves)
-          updated-games     (map (partial update-game game) updated-boards)
+          updated-games     (map (partial update-game game) moves)
           scores            (mapfn #(look-ahead-move-scores % player (dec n-turns))
                                   updated-games)]
       (zipmap moves (map (comp mean vals) scores)))))
